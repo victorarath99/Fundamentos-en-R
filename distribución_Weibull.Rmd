@@ -1,0 +1,125 @@
+---
+title: "Weibull"
+author: ""
+date: ""
+output:
+  word_document: default
+  pdf_document: default
+---
+# 1. Modelo probabilístico para las lluvias en México.
+
+### Se tienen tres modelos: Modelo Exponencial (Modelo 1), Modelo Gamma (Modelo 2) y ahora considera el Modelo Weibull (Modelo 3).
+
+```{r}
+lluvias= read.table("./lluvias.txt",sep="\t",header=T)
+y<-lluvias$Precipitacion
+y
+```
+
+a) Escribe la función de (log)verosimilitud para los datos de lluvias usando el
+Modelo 3.
+
+```{r warning = FALSE ,error = TRUE}
+logweibull<-function(parametro){
+  logw= -sum(dweibull(y,parametro[1],parametro[2],log=T))
+  logw
+}
+```
+
+b) Estima los parametros del Modelo 3 usando alguno de los optimizadores
+discutidos en clase. Como valores iniciales considera las estimaciones de momentos (ver
+notas de clase).
+
+```{r}
+s2<-var(y)
+media2<-mean(y)
+funcion<-function(x){
+  p1= s2/media2^2
+  p2=(gamma(1+2/x))/(gamma(1+1/x)*gamma(1+1/x))
+  res<-p1-p2+1
+  return(res)
+}
+
+th.lik<-seq(1.7,2,0.01)  # valores propuestos para el parametro
+l<-rep(0,length(th.lik))   # repite el valor de la primera entrada tantas veces como
+
+for (i in 1:length(th.lik)) l[i] <-funcion(th.lik[i])
+plot(th.lik,l,type="l",lwd=2,col="red",xlab="alpha",ylab="L",main="")
+abline(v=1.906153, h=0, col="blue")
+#locator()
+```
+
+```{r}
+alfahat=1.906153
+betahat=media2/gamma(1+1/alfahat)
+```
+
+```{r warning = FALSE}
+lluviaslog<- optim(c(alfahat,betahat),logweibull)
+lluviaslog
+```
+
+c) Grafica el histograma de los datos de lluvia y ajusta el Modelo 3 con los
+parámetros estimados en el inciso (b).
+
+```{r}
+logweibull<-function(parametro){
+  logw= -sum(dweibull(y,parametro[1],parametro[2],log=T))
+  logw
+}
+hist(y, pch=20, breaks=6, prob=TRUE,main="")
+curve(dweibull(x, lluviaslog$par[1],lluviaslog$par[2]),col="red", lwd=2, add=T)
+```
+
+d) Compara tus ajustes con los obtenidos mediante la función fitdistr.
+```{r}
+library(MASS)
+lluvias_mle<- fitdistr(y, densfun="weibull") # lo hace con MLE
+lluvias_mle
+
+```
+
+```{r}
+comparacion<-c(lluviaslog$par[1],lluviaslog$par[2])
+final<-cbind(comparacion,lluvias_mle$estimate)
+colnames(final)<-c(" Mis ajustes","  fitdistr")
+final
+
+```
+
+
+e) Utiliza el criterio AIC o BIC para seleccionar uno de los tres modelos probabilísticos propuestos. ¿Cuál es el modelo preferido para explicar el comportamiento de las lluvias en México?
+
+```{r}
+k=2   # numero de parametros a estimar
+AIC_weibull= 2*k-(2*lluvias_mle$loglik); AIC_weibull
+BIC_weibull= log(n)*k-(2*lluvias_mle$loglik); BIC_weibull
+```
+
+
+```{r}
+fit_mle1= fitdistr(y,densfun = "exponential")
+lluvias_mle1<- fitdistr(y, densfun="gamma") 
+k=1   # numero de parametros a estimar
+n= length(y)
+AIC_exp= 2*k-(2*fit_mle1$loglik); AIC_exp
+BIC_exp= log(n)*k-(2*fit_mle1$loglik); BIC_exp
+
+k=2   # numero de parametros a estimar
+AIC_gamma= 2*k-(2*lluvias_mle1$loglik); AIC_gamma
+BIC_gamma= log(n)*k-(2*lluvias_mle1$loglik); BIC_gamma
+```
+
+
+
+```{r }
+#comparacionw<-c(AIC_weibull,BIC_weibull)
+comparacione<-c(AIC_exp,BIC_exp)
+comparaciong<-c(AIC_gamma,BIC_gamma)
+comparacion<-cbind(comparacione,comparaciong)
+colnames(comparacion)<-c("Exponencial"," Gamma ")
+rownames(comparacion)<-c("AIC  ","BIC  ")
+comparacion
+```
+
+
